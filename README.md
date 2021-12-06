@@ -99,11 +99,11 @@ binds:
   python: /usr/bin/python3
 
 watch:
-	type: script
-		content: |
-		#!/bin/bash
-		echo "watching the job..."
-		tmux a -t {{ params['project'] }}-{{ params['id'] }}
+  type: script
+    content: |
+    #!/bin/bash
+    echo "watching the job..."
+    tmux a -t {{ params['project'] }}-{{ params['id'] }}
 ```
 
 ## Using templates
