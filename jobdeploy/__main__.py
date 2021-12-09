@@ -50,8 +50,12 @@ class KeyValuePairs(click.ParamType):
 
 
 @cli.command()
-def ls():
-    print(json.dumps(load_all_resources(), indent=2))
+@click.option('--template', default=None, help='type of resource to list')
+def ls(template):
+    out = load_all_resources()
+    if template is not None:
+        out = [x for x in out if x['template'] == template]
+    print(json.dumps(out, indent=2))
 
 
 @cli.command()
@@ -64,21 +68,22 @@ def rm(id, purge):
     if purge:
         build_meta(r['template'], 'purge', id=id)
 
-    os.system(f'rm -rf .jd/{r["params"]["subdir"]}')
+    os.system(f'rm -rf .jd/{r["subdir"]}')
 
 
 @cli.command(help='build template')
-@click.argument('template')
 @click.argument('method')
-@click.option('--kwargs', default=None, help='key-value pairs to add to build',
+@click.option('--template', default=None)
+@click.option('--id', default=None)
+@click.option('--params', default=None, help='key-value pairs to add to build',
               type=KeyValuePairs())
-def build(template, method, kwargs):
-    print(kwargs)
-    if kwargs is None:
-        kwargs = {}
-    if template.endswith('.yaml'):
+def build(method, template, params):
+    print(params)
+    if params is None:
+        params = {}
+    if isinstance(template, str) and template.endswith('.yaml'):
         template = template.split('.yaml')[0]
-    build_meta(template, method, **kwargs)
+    build_meta(template, method, id=id, **params)
 
 
 if __name__ == '__main__':

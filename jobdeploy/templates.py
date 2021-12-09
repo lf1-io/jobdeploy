@@ -1,64 +1,35 @@
-import json
-
 from jinja2 import Template, StrictUndefined
-import os
 import yaml
+
+from values import get_or_create_values
+from resources import load_resource
+from utils import missing_msg, call_script, log_content
+
+
+def get_path(id):
+    return load_resource(id)['template']
 
 
 def load_template(path):
     """
     Load deployment template.
 
-    :params path: Load template from path. If template has "parent" field, then combine with parent
-        template. Parameters named in binds are set in the parent by default.
+    :params path: Load template from path. If templte has "parents" field, then combine with parent
+        templates. Parameters named in binds are set in the parents as defaults.
     """
-    with open(path + '.yaml') as f:
+    if not path.endswith('.yaml'):
+        path += '.yaml'
+    with open('templates/' + path) as f:
         template = yaml.safe_load(f.read())
-    if not 'parent' in template:
-        return template
-    with open(template['parent']) as f:
-        parent = yaml.safe_load(f.read())
-    binds = template.get('binds', {})
-    parent['params'].extend([x for x in template.get('params', []) if x not in parent['params']])
-    for k in template.get('builds', {}):
-        parent['builds'][k] = template['builds'][k]
-    return parent, binds
+
+    assert 'builds' in template, 'template must have section "builds"'
+    assert 'params' in template, 'template must have section "params"'
+    assert 'config' in template, 'template must have section "config"'
+    assert 'meta' in template, 'template must have section "meta"'
+    return template
 
 
-def create_value(value, other_values, params):
-    """
-    Format a value using template parameters.
-
-    :param value: Value to be formatted using Jinja2.
-    :param other_values: Other pre-built values to be used in the value with {{ values[...] }}.
-    :param params: Dictionary of parameters, referred to by {{ params[...] }}.
-    """
-    if isinstance(value, str):
-        return Template(value, undefined=StrictUndefined).render(params=params,
-                                                                 values=other_values)
-    elif isinstance(value, list):
-        return [create_value(x, other_values, params) for x in value]
-
-    elif isinstance(value, dict):
-        return {k: create_value(value[k], other_values, params) for k in value}
-
-    else:
-        raise NotImplementedError('only strings, and recursively lists and dicts supported')
-
-
-def create_values(values, **params):
-    """
-    Create values. Go through dictionary of values based on parameters dictionary.
-
-    :param values: Dictionary of values with Jinja2 variables in strings.
-    """
-    out = {}
-    for k in values:
-        out[k] = create_value(values[k], out, params)
-    return out
-
-
-def call_template(template, method, **params):
+def call_template(template, method, params, meta):
     """
     Call template with parameters.
 
@@ -67,42 +38,28 @@ def call_template(template, method, **params):
     """
 
     assert set(params.keys()) == set(template['params']), \
-        (f'missing keys: {set(template["params"]) - set(params.keys())}; '
-         f'unexpected keys: {set(params.keys()) - set(template["params"])}')
+        missing_msg(set(params.keys()), set(template['params']))
 
     def build_method(method):
         cf = template['builds'][method]
-        if method == 'up' and 'values' in template:
-            values = create_values(template, **params)
-            with open(params['subdir'] + '/values.json', 'w') as f:
-                json.dump(values, f)
-        else:
-            try:
-                with open(params['subdir'] + '/values.json') as f:
-                    values = json.load(f)
-            except FileNotFoundError:
-                values = {}
+        values = get_or_create_values(template, params, meta)
+
+        deploy_dir = f'.jd/{meta["subdir"]}/tasks'
+
         if cf['type'] != 'sequence':
             print(f'building "{method}"')
 
             content = Template(cf['content'], undefined=StrictUndefined).render(
-                params=params, values=values,
+                params=params, values=values, meta=meta, config=template['config'],
             )
-            lines = content.split('\n')
-            len_ = max([len(x) for x in lines])
-            print(f'content:\n  ' + len_ * '-')
-            print('\n'.join(['  ' + x for x in lines]))
-            print(f'  ' + len_ * '-')
+            log_content(content)
             if cf['type'] == 'file':
-                path = f'.jd/{params["subdir"]}/tasks/{method}'
+                path = f'{deploy_dir}/{method}'
                 with open(path, 'w') as f:
                     f.write(content)
             if cf['type'] == 'script':
-                path = f'.jd/{params["subdir"]}/tasks/{method}'
-                with open(path, 'w') as f:
-                    f.write(content)
-                os.system(f'chmod +x {path}')
-                exit_code = os.system(f'./{path}')
+                path = f'{deploy_dir}/{method}'
+                exit_code = call_script(path, content, grab_output=False, cleanup=False)
                 if exit_code and exit_code not in cf.get('whitelist', []):
                     raise Exception(f'script exited with non-zero exit code: {exit_code}.')
             return
@@ -111,4 +68,3 @@ def call_template(template, method, **params):
             build_method(m)
 
     build_method(method)
-

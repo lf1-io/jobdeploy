@@ -106,6 +106,20 @@ watch:
     tmux a -t {{ params['project'] }}-{{ params['id'] }}
 ```
 
-## Using templates
+## Using templates to create and manage resources
 
-Here is how to create the `local`.
+List resources:
+```bash
+jd ls
+```
+
+Here is how to create the `my_model.yaml` resource:
+```bash
+jd build my_model.yaml up --params run='python3 -u test.py',name=test
+```
+
+Stop resource:
+```bash
+jd rm '<id-of-resource>' [--purge/--no-purge]
+```
+

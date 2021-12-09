@@ -15,7 +15,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 def parse_requirements(filename):
     with pathlib.Path(filename).open() as requirements_txt:
-        return [str(requirement) for requirement in pkg_resources.parse_requirements(requirements_txt)]
+        return [str(requirement)
+                for requirement in pkg_resources.parse_requirements(requirements_txt)]
 
 
 setuptools.setup(
@@ -31,6 +32,8 @@ setuptools.setup(
     setup_requires=[],
     license="Apache 2.0",
     classifiers=[
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         'Topic :: Scientific/Engineering',
