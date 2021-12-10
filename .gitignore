@@ -2,3 +2,5 @@
 .jd
 /checkpoints
 *.pyc
+/dist/
+*.egg-info
