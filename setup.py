@@ -43,4 +43,9 @@ setuptools.setup(
     install_requires=parse_requirements('requirements.txt'),
     package_data={'': ['requirements.txt']},
     include_package_data=True,
+    entry_points={
+	'console_scripts': [
+            'jd = jd.__main__:cli'
+        ]
+    }
 )
