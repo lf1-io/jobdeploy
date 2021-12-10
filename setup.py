@@ -5,7 +5,7 @@ import pathlib
 from distutils.util import convert_path
 
 versions = {}
-ver_path = convert_path('jobdeploy/version.py')
+ver_path = convert_path('jd/version.py')
 with open(ver_path) as ver_file:
     exec(ver_file.read(), versions)
 

@@ -3,17 +3,19 @@
 Getting started.
 
 ```bash
-pip install ai-jobdeploy
+pip install ai-jd
 ```
 
 ## Base Template
 
 
-Templates must implement 2 fields: `params`, `values` and `builds`. 
+Templates must implement 5 fields: `params`, `meta`, `config`, `values` and `builds`. 
 
-`params` are a list of parameters specified on creation `up` of the resource.
-
-`values` are a dictionary of formatted values (on the basis of parameters) which are created at `up` and may be referred to in the `builds`.
+`params` is a list of parameters specified on creation `up` of the resource.
+`meta` is a list and subset of "subdir", "id", "project".
+`config` is a dictionary of configured values (e.g. security group ids, etc..)
+`values` are a dictionary of formatted values (on the basis of parameters) which are 
+and may be referred to in the `builds`.
 
 The `builds` section must implement `up` and `down`. There are 3 types of builds:
 
@@ -31,12 +33,16 @@ The `builds` section must implement `up` and `down`. There are 3 types of builds
 
 ```yaml
 params:
-  - project
   - name
+  - run
+  
+meta:
   - id
   - subdir
-  - run
-  - python
+  - project
+
+config:
+  python: /usr/bin/python3
 
 builds:
   install:
@@ -86,26 +92,6 @@ builds:
       - start
 ```
 
-## Configured templates
-
-Templates may be configured on the basis of a base template. For this, two additional fields must be specified `binds` and `parent`. For example, on the basis of the above template, we can configure a specific python version.
-
-**my_model.yaml**
-
-```yaml
-parent: local.yaml
-
-binds:
-  python: /usr/bin/python3
-
-watch:
-  type: script
-    content: |
-    #!/bin/bash
-    echo "watching the job..."
-    tmux a -t {{ params['project'] }}-{{ params['id'] }}
-```
-
 ## Using templates to create and manage resources
 
 List resources:
@@ -115,11 +101,17 @@ jd ls
 
 Here is how to create the `my_model.yaml` resource:
 ```bash
-jd build my_model.yaml up --params run='python3 -u test.py',name=test
+jd build local up --params run='python3 -u test.py',name=test
+```
+
+Do something with the resource (anything apart from up). Get `id` from `jd ls`.
+
+```bash
+jd build watch --id <id>
 ```
 
 Stop resource:
 ```bash
-jd rm '<id-of-resource>' [--purge/--no-purge]
+jd rm <id> [--purge/--no-purge]
 ```
 
