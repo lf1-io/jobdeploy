@@ -73,9 +73,5 @@ def build(method, template, id, params):
     _build(template, method, id=id, **params)
 
 
-def main():
-    cli()
-
-
 if __name__ == '__main__':
     cli()
