@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 
+from resources import load_resource, load_all_resources
 from utils import random_id
 from utils import missing_msg
 from templates import call_template, load_template, get_path
@@ -41,7 +42,24 @@ def postprocess_params_for_resource(info):
         json.dump(info, f)
 
 
-def build_meta(path, method, id=None, **params):
+def rm(id, purge=False):
+    r = load_resource(id)
+    if 'stopped' not in r:
+        build(r['template'], 'down', id=id)
+    if purge:
+        build(r['template'], 'purge', id=id)
+
+    os.system(f'rm -rf .jd/{r["subdir"]}')
+
+
+def ls(template=None):
+    out = load_all_resources()
+    if template is not None:
+        out = [x for x in out if x['template'] == template]
+    print(json.dumps(out, indent=2))
+
+
+def build(path, method, id=None, **params):
     """ Call template located at "path" with parameters.
 
     :param path: Template .yaml path.
@@ -50,7 +68,7 @@ def build_meta(path, method, id=None, **params):
     """
 
     if path is None:
-        path = get_path(id=params['id'])
+        path = get_path(id=id)
     template = load_template(path)
 
     try:
@@ -63,7 +81,7 @@ def build_meta(path, method, id=None, **params):
             params = info['params']
 
         meta = {k: v for k, v in info.items() if k not in {'values', 'params', 'config'}}
-        call_template(template, method, params, meta)
+        call_template(template, method, params, meta, on_up=method=='up')
 
         if method == 'down':
             postprocess_params_for_resource(info)

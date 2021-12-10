@@ -29,7 +29,7 @@ def load_template(path):
     return template
 
 
-def call_template(template, method, params, meta):
+def call_template(template, method, params, meta, on_up=False):
     """
     Call template with parameters.
 
@@ -42,7 +42,7 @@ def call_template(template, method, params, meta):
 
     def build_method(method):
         cf = template['builds'][method]
-        values = get_or_create_values(template, params, meta)
+        values = get_or_create_values(template, params, meta, on_up=on_up)
 
         deploy_dir = f'.jd/{meta["subdir"]}/tasks'
 

@@ -1,22 +1,25 @@
 import json
-
-import jinja2
 from jinja2 import Template, StrictUndefined
-
 from utils import random_id, log_content, call_script
 
 
-def get_or_create_values(template, params, meta):
+def get_or_create_values(template, params, meta, on_up=False):
     info_path = f'.jd/{meta["subdir"]}/info.json'
     with open(info_path) as f:
         info = json.load(f)
     existing_values = info.get('values', {})
-
     missing_values = {k: v for k, v in template.get('values', {}).items()
                       if k not in existing_values}
+
     if missing_values:
-        existing_values.update(create_values(missing_values, existing_values, params, meta,
-                                             template['config']))
+        existing_values.update(
+            create_values(missing_values,
+                          params,
+                          meta,
+                          template['config'],
+                          existing_values=existing_values,
+                          on_up=on_up)
+        )
 
     info['values'] = existing_values
     with open(info_path, 'w') as f:
@@ -24,7 +27,8 @@ def get_or_create_values(template, params, meta):
     return existing_values
 
 
-def create_values(values, params, meta, config, existing_values=None):
+def create_values(values, params, meta, config, existing_values=None,
+                  on_up=False):
     """
     Create values. Go through dictionary of values based on parameters dictionary.
 
@@ -32,21 +36,19 @@ def create_values(values, params, meta, config, existing_values=None):
     """
     if existing_values is None:
         existing_values = {}
+
     for k in values:
         if values[k]['type'] == 'static':
-            try:
+            if not on_up or values[k].get('on_up', True):
                 existing_values[k] = \
                     create_static_value(values[k]['content'], existing_values, params, meta,
                                         config)
-            except jinja2.exceptions.UndefinedError as e:
-                if not values[k].get('strict', True):
-                    print(f'couldnt create static value: {values[k]}')
-                else:
-                    raise e
+            else:
+                print(f"didn't create static value because on_up=False: {k}")
 
     for k in values:
         if values[k]['type'].startswith('output/'):
-            try:
+            if not on_up or values[k].get('on_up', True):
                 output = create_output_value(values[k]['content'], existing_values, params, meta,
                                              config)
                 suffix = values[k]['type'].split('output/')[-1]
@@ -56,11 +58,8 @@ def create_values(values, params, meta, config, existing_values=None):
                     existing_values[k] = json.loads(suffix)
                 else:
                     raise NotImplementedError(f'output type for value not supported: {suffix}.')
-            except Exception as e:
-                if 'grabbing output' in str(e) and not values[k].get('strict', True):
-                    print(f'couldnt get output value: {k} based on script')
-                else:
-                    raise e
+            else:
+                print(f"didn't create output value because on_up=False: {k}")
     return existing_values
 
 

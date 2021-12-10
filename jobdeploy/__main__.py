@@ -1,9 +1,5 @@
 import click
-import json
-import os
-
-from controller import build_meta
-from resources import load_all_resources, load_resource
+from controller import build as _build, rm as _rm, ls as _ls
 
 
 @click.group()
@@ -52,23 +48,14 @@ class KeyValuePairs(click.ParamType):
 @cli.command()
 @click.option('--template', default=None, help='type of resource to list')
 def ls(template):
-    out = load_all_resources()
-    if template is not None:
-        out = [x for x in out if x['template'] == template]
-    print(json.dumps(out, indent=2))
+    _ls(template)
 
 
 @cli.command()
 @click.argument('id')
 @click.option('--purge/--no-purge', default=False, help='purge resource')
 def rm(id, purge):
-    r = load_resource(id)
-    if 'stopped' not in r:
-        build_meta(r['template'], 'down', id=id)
-    if purge:
-        build_meta(r['template'], 'purge', id=id)
-
-    os.system(f'rm -rf .jd/{r["subdir"]}')
+    _rm(id, purge)
 
 
 @cli.command(help='build template')
@@ -77,13 +64,13 @@ def rm(id, purge):
 @click.option('--id', default=None)
 @click.option('--params', default=None, help='key-value pairs to add to build',
               type=KeyValuePairs())
-def build(method, template, params):
+def build(method, template, id, params):
     print(params)
     if params is None:
         params = {}
     if isinstance(template, str) and template.endswith('.yaml'):
         template = template.split('.yaml')[0]
-    build_meta(template, method, id=id, **params)
+    _build(template, method, id=id, **params)
 
 
 if __name__ == '__main__':
