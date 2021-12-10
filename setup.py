@@ -39,7 +39,7 @@ setuptools.setup(
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
     ],
-    python_requires='>=3.8',
+    python_requires='>=3.6',
     install_requires=parse_requirements('requirements.txt'),
     package_data={'': ['requirements.txt']},
     include_package_data=True,
