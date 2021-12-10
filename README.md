@@ -3,7 +3,7 @@
 Getting started.
 
 ```bash
-pip install ai-jd
+pip install ai-jobdeploy
 ```
 
 ## Base Template
