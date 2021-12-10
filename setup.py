@@ -10,7 +10,7 @@ with open(ver_path) as ver_file:
     exec(ver_file.read(), versions)
 
 with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read().split('\n')
+    long_description = fh.read()
 
 
 def parse_requirements(filename):
@@ -20,7 +20,7 @@ def parse_requirements(filename):
 
 
 setuptools.setup(
-    name="AI Job Deploy",
+    name="ai-jobdeploy",
     version=versions['__version__'],
     author="LF1",
     author_email="contact@lf1.io",
