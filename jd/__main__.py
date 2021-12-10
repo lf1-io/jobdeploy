@@ -1,5 +1,5 @@
 import click
-from controller import build as _build, rm as _rm, ls as _ls
+from jd.controller import build as _build, rm as _rm, ls as _ls
 
 
 @click.group()
@@ -71,6 +71,10 @@ def build(method, template, id, params):
     if isinstance(template, str) and template.endswith('.yaml'):
         template = template.split('.yaml')[0]
     _build(template, method, id=id, **params)
+
+
+def main():
+    cli()
 
 
 if __name__ == '__main__':

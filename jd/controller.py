@@ -2,10 +2,10 @@ import datetime
 import json
 import os
 
-from resources import load_resource, load_all_resources
-from utils import random_id
-from utils import missing_msg
-from templates import call_template, load_template, get_path
+from jd.resources import load_resource, load_all_resources
+from jd.utils import random_id
+from jd.utils import missing_msg
+from jd.templates import call_template, load_template, get_path
 
 
 def get_project():

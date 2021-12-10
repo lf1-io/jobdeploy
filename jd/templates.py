@@ -1,9 +1,9 @@
 from jinja2 import Template, StrictUndefined
 import yaml
 
-from values import get_or_create_values
-from resources import load_resource
-from utils import missing_msg, call_script, log_content
+from jd.values import get_or_create_values
+from jd.resources import load_resource
+from jd.utils import missing_msg, call_script, log_content
 
 
 def get_path(id):

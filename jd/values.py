@@ -1,6 +1,6 @@
 import json
 from jinja2 import Template, StrictUndefined
-from utils import random_id, log_content, call_script
+from jd.utils import random_id, log_content, call_script
 
 
 def get_or_create_values(template, params, meta, on_up=False):
