@@ -15,6 +15,11 @@ def get_project():
 def prepare_params_for_resource(path, template, params):
     meta = {}
     meta['id'] = random_id()
+    meta['commit'] = os.popen('git rev-parse HEAD').read().split('\n')[0]
+    msg = os.popen('git log -1 --pretty=%B').read().split('\n')[0]
+    meta['message'] = '\n'.join([x.strip() for x in msg.split('\n') if x.strip()])
+    if not meta['commit']:
+        raise Exception('something went wrong determining the current commit')
     prefix = path.replace('/', '-')
     subdir = prefix + '-' + meta['id']
 
@@ -42,10 +47,11 @@ def postprocess_params_for_resource(info):
         json.dump(info, f)
 
 
-def rm(id, purge=False):
+def rm(id, purge=False, down=True):
     r = load_resource(id)
-    if 'stopped' not in r:
-        build(r['template'], 'down', id=id)
+    if down:
+        if 'stopped' not in r:
+            build(r['template'], 'down', id=id)
     if purge:
         build(r['template'], 'purge', id=id)
 
@@ -54,8 +60,14 @@ def rm(id, purge=False):
 
 def ls(template=None):
     out = load_all_resources()
+    out = [{k: v for k, v in x.items() if k not in {'values', 'config'}} for x in out]
     if template is not None:
         out = [x for x in out if x['template'] == template]
+    print(json.dumps(out, indent=2))
+
+
+def view(id):
+    out = load_resource(id)
     print(json.dumps(out, indent=2))
 
 
@@ -81,7 +93,7 @@ def build(path, method, id=None, **params):
             params = info['params']
 
         meta = {k: v for k, v in info.items() if k not in {'values', 'params', 'config'}}
-        call_template(template, method, params, meta, on_up=method=='up')
+        call_template(template, method, params, meta, on_up=method == 'up')
 
         if method == 'down':
             postprocess_params_for_resource(info)

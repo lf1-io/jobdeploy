@@ -1,10 +1,33 @@
 import click
-from jd.controller import build as _build, rm as _rm, ls as _ls
+import re
+from jd.controller import build as _build, rm as _rm, ls as _ls, view as _view
 
 
 @click.group()
 def cli():
     ...
+
+
+def parse_inputs(x):
+    groups = re.finditer('"([^\']+)"', x)
+    reference = {}
+    for i, g in enumerate(groups):
+        x = x.replace(g.group(), f'#{i}')
+        reference[f'#{i}'] = g.groups()[0]
+    my_dict = dict([x.split('=') for x in x.split(',')])
+    for k, val in my_dict.items():
+        if val.isnumeric():
+            my_dict[k] = eval(val)
+        elif val.startswith('#'):
+            my_dict[k] = reference[val]
+        elif val in {'true', 'True', 'false', 'False'}:
+            my_dict[k] = val.lower() == 'true'
+        elif '+' in val:
+            val = val.split('+')
+            val = [x for x in val if x]
+            val = [eval(x) if x.isnumeric() else x for x in val]
+            my_dict[k] = val
+    return my_dict
 
 
 class KeyValuePairs(click.ParamType):
@@ -22,17 +45,7 @@ class KeyValuePairs(click.ParamType):
         if not value.strip():
             return {}
         try:
-            my_dict = dict([x.split('=') for x in value.split(',')])
-            for k, val in my_dict.items():
-                if val.isnumeric():
-                    my_dict[k] = eval(val)
-                elif val in {'true', 'True', 'false', 'False'}:
-                    my_dict[k] = val.lower == 'true'
-                elif '+' in val:
-                    val = val.split('+')
-                    val = [x for x in val if x]
-                    val = [eval(x) if x.isnumeric() else x for x in val]
-                    my_dict[k] = val
+            my_dict = parse_inputs(value)
             return my_dict
         except TypeError:
             self.fail(
@@ -53,9 +66,16 @@ def ls(template):
 
 @cli.command()
 @click.argument('id')
+def view(id):
+    _view(id)
+
+
+@cli.command()
+@click.argument('id')
 @click.option('--purge/--no-purge', default=False, help='purge resource')
-def rm(id, purge):
-    _rm(id, purge)
+@click.option('--down/--no-down', default=True, help='tear down resource with the down method')
+def rm(id, purge, down):
+    _rm(id, purge, down)
 
 
 @cli.command(help='build template')
