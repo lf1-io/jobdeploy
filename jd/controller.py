@@ -64,11 +64,17 @@ def ls(template=None):
     if template is not None:
         out = [x for x in out if x['template'] == template]
     print(json.dumps(out, indent=2))
+    return out
 
 
 def view(id):
     out = load_resource(id)
     print(json.dumps(out, indent=2))
+
+
+def _get_last_id(template_path):
+    records = ls(template=template_path)
+    return records[-1]['id']
 
 
 def build(path, method, id=None, **params):
@@ -79,6 +85,8 @@ def build(path, method, id=None, **params):
     :param params: Run-time parameters (key values)
     """
 
+    if id is None:
+        id = _get_last_id(path)
     if path is None:
         path = get_path(id=id)
     template = load_template(path)
