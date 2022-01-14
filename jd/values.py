@@ -4,9 +4,9 @@ from jd.utils import random_id, log_content, call_script
 
 
 def get_or_create_values(template, params, meta, on_up=False):
-    info_path = f'.jd/{meta["subdir"]}/info.json'
-    with open(info_path) as f:
-        info = json.load(f)
+    with open(meta['jd_path']) as f:
+        jobs = json.load(f)
+    info = next(j for j in jobs if j['id'] == meta['id'])
     existing_values = info.get('values', {})
     missing_values = {k: v for k, v in template.get('values', {}).items()
                       if k not in existing_values}
@@ -20,10 +20,9 @@ def get_or_create_values(template, params, meta, on_up=False):
                           existing_values=existing_values,
                           on_up=on_up)
         )
-
     info['values'] = existing_values
-    with open(info_path, 'w') as f:
-        json.dump(info, f)
+    with open(meta['jd_path'], 'w') as f:
+        json.dump(jobs, f, indent=2)
     return existing_values
 
 

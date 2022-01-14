@@ -1,3 +1,5 @@
+import os
+
 from jinja2 import Template, StrictUndefined
 import yaml
 
@@ -44,7 +46,9 @@ def call_template(template, method, params, meta, on_up=False):
         cf = template['builds'][method]
         values = get_or_create_values(template, params, meta, on_up=on_up)
 
-        deploy_dir = f'.jd/{meta["subdir"]}/tasks'
+        deploy_dir = f'{meta["subdir"]}/tasks'
+        if not os.path.exists(deploy_dir):
+            os.makedirs(deploy_dir, exist_ok=True)
 
         if cf['type'] != 'sequence':
             print(f'building "{method}"')

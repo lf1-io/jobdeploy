@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import re
 
 from jd.resources import load_resource, load_all_resources
 from jd.utils import random_id
@@ -12,17 +13,16 @@ def get_project():
     return os.getcwd().split('/')[-1]
 
 
-def prepare_params_for_resource(path, template, params):
+def prepare_params_for_resource(path, template, root, params):
     meta = {}
     meta['id'] = random_id()
     meta['commit'] = os.popen('git rev-parse HEAD').read().split('\n')[0]
     msg = os.popen('git log -1 --pretty=%B').read().split('\n')[0]
     meta['message'] = '\n'.join([x.strip() for x in msg.split('\n') if x.strip()])
+    meta['jd_path'] = root + 'jd.json'
     if not meta['commit']:
         raise Exception('something went wrong determining the current commit')
-    prefix = path.replace('/', '-')
-    subdir = prefix + '-' + meta['id']
-
+    subdir = f'{root}.jd/{meta["id"]}'
     meta['subdir'] = subdir
     os.system(f'mkdir -p .jd/{meta["subdir"]}/tasks')
     meta['project'] = get_project()
@@ -35,16 +35,26 @@ def prepare_params_for_resource(path, template, params):
             'template': path,
             **meta}
 
-    with open(f'.jd/{meta["subdir"]}/info.json', 'w') as f:
-        json.dump(info, f)
+    try:
+        with open(f'{meta["jd_path"]}') as f:
+            all_jobs = json.load(f)
+    except FileNotFoundError:
+        all_jobs = []
+
+    all_jobs.append(info)
+    with open(f'{meta["jd_path"]}', 'w') as f:
+        json.dump(info, f, indent=2)
 
     return info
 
 
 def postprocess_params_for_resource(info):
     info['stopped'] = str(datetime.datetime.now())
-    with open(f'.jd/{info["subdir"]}/info.json', 'w') as f:
-        json.dump(info, f)
+    with info['jd_path'] as f:
+        jobs = json.load(f)
+    jobs = [x if x['id'] != info['id'] else info for x in jobs]
+    with open(f'{info["jd_path"]}', 'w') as f:
+        json.dump(jobs, f, indent=2)
 
 
 def rm(id, purge=False, down=True):
@@ -55,14 +65,19 @@ def rm(id, purge=False, down=True):
     if purge:
         build(r['template'], 'purge', id=id)
 
-    os.system(f'rm -rf .jd/{r["subdir"]}')
+    with open(r['jd_path']) as f:
+        jobs = json.load(f)
+    jobs = [x for x in jobs if x['id'] != r['id']]
+
+    with open(r['jd_path'], 'w') as f:
+        json.dump(jobs, f, indent=2)
 
 
-def ls(template=None):
-    out = load_all_resources()
+def ls(template=None, root=''):
+    out = load_all_resources(root=root)
     out = [{k: v for k, v in x.items() if k not in {'values', 'config'}} for x in out]
     if template is not None:
-        out = [x for x in out if x['template'] == template]
+        out = [x for x in out if re.match(template, x['template']) is not None]
     print(json.dumps(out, indent=2))
     return out
 
@@ -77,15 +92,21 @@ def _get_last_id(template_path):
     return records[-1]['id']
 
 
-def build(path, method, id=None, **params):
+def _get_jd_path(id):
+    records = ls()
+    return next(x for x in records if x['id'] == id)['jd_path']
+
+
+def build(path, method, id=None, root='', **params):
     """ Call template located at "path" with parameters.
 
     :param path: Template .yaml path.
     :param method: Name of build to run.
+    :param root: Root directory for storing meta-data
     :param params: Run-time parameters (key values)
     """
 
-    if id is None:
+    if id is None and not (method == 'up'):
         id = _get_last_id(path)
     if path is None:
         path = get_path(id=id)
@@ -93,11 +114,15 @@ def build(path, method, id=None, **params):
 
     try:
         if method == 'up':
+            if not os.path.exists(root + '.jd'):
+                os.makedirs(root + '.jd')
             info = prepare_params_for_resource(path, template, params)
         else:
+            jd_path = _get_jd_path(id)
             assert id is not None
-            with open(f'.jd/{path.replace("/", "-")}-{id}/info.json') as f:
-                info = json.load(f)
+            with open(jd_path) as f:
+                jobs = json.load(f)
+            info = next(j for j in jobs if j['id'] == id)
             params = info['params']
 
         meta = {k: v for k, v in info.items() if k not in {'values', 'params', 'config'}}
@@ -108,6 +133,6 @@ def build(path, method, id=None, **params):
 
     except Exception as e:
         if method == 'up':
-            os.system(f'rm -rf .jd/{info["subdir"]}')
+            rm(info['id'])
         raise e
 

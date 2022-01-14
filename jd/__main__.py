@@ -60,8 +60,9 @@ class KeyValuePairs(click.ParamType):
 
 @cli.command()
 @click.option('--template', default=None, help='type of resource to list')
-def ls(template):
-    _ls(template)
+@click.option('--root', default='', help='limit list to directory root')
+def ls(template, root):
+    _ls(template, root)
 
 
 @cli.command()
@@ -84,13 +85,14 @@ def rm(id, purge, down):
 @click.option('--id', default=None)
 @click.option('--params', default=None, help='key-value pairs to add to build',
               type=KeyValuePairs())
-def build(method, template, id, params):
+@click.option('--root', default='')
+def build(method, template, id, params, root):
     print(params)
     if params is None:
         params = {}
     if isinstance(template, str) and template.endswith('.yaml'):
         template = template.split('.yaml')[0]
-    _build(template, method, id=id, **params)
+    _build(template, method, id=id, root=root, **params)
 
 
 if __name__ == '__main__':
