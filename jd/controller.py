@@ -16,11 +16,11 @@ def get_project():
 def prepare_params_for_resource(path, template, root, params):
     meta = {}
     meta['id'] = random_id()
-    meta['commit'] = os.popen('git rev-parse HEAD').read().split('\n')[0]
+    meta['commit_up'] = os.popen('git rev-parse HEAD').read().split('\n')[0]
     msg = os.popen('git log -1 --pretty=%B').read().split('\n')[0]
-    meta['message'] = '\n'.join([x.strip() for x in msg.split('\n') if x.strip()])
+    meta['message_up'] = '\n'.join([x.strip() for x in msg.split('\n') if x.strip()])
     meta['jd_path'] = root + 'jd.json'
-    if not meta['commit']:
+    if not meta['commit_up']:
         raise Exception('something went wrong determining the current commit')
     subdir = f'{root}.jd/{meta["id"]}'
     meta['subdir'] = subdir
@@ -48,8 +48,12 @@ def prepare_params_for_resource(path, template, root, params):
     return info
 
 
-def postprocess_params_for_resource(info):
+def postprocess_params_for_resource(info, method):
     info['stopped'] = str(datetime.datetime.now())
+    if method == 'down':
+        info['commit_down'] = os.popen('git rev-parse HEAD').read().split('\n')[0]
+        msg = os.popen('git log -1 --pretty=%B').read().split('\n')[0]
+        info['message_down'] = '\n'.join([x.strip() for x in msg.split('\n') if x.strip()])
     with open(info['jd_path']) as f:
         jobs = json.load(f)
     jobs = [x if x['id'] != info['id'] else info for x in jobs]
@@ -131,7 +135,7 @@ def build(path, method, id=None, root='', **params):
         call_template(template, method, params, meta, on_up=method == 'up')
 
         if method == 'down':
-            postprocess_params_for_resource(info)
+            postprocess_params_for_resource(info, method)
 
     except Exception as e:
         # if method == 'up':
