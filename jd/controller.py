@@ -24,7 +24,7 @@ def prepare_params_for_resource(path, template, root, params):
         raise Exception('something went wrong determining the current commit')
     subdir = f'{root}.jd/{meta["id"]}'
     meta['subdir'] = subdir
-    os.system(f'mkdir -p .jd/{meta["subdir"]}/tasks')
+    os.system(f'mkdir -p {meta["subdir"]}/tasks')
     meta['project'] = get_project()
     assert set(params.keys()) == set(template['params']), \
         missing_msg(set(params.keys()), set(template['params']))
@@ -43,14 +43,14 @@ def prepare_params_for_resource(path, template, root, params):
 
     all_jobs.append(info)
     with open(f'{meta["jd_path"]}', 'w') as f:
-        json.dump(info, f, indent=2)
+        json.dump(all_jobs, f, indent=2)
 
     return info
 
 
 def postprocess_params_for_resource(info):
     info['stopped'] = str(datetime.datetime.now())
-    with info['jd_path'] as f:
+    with open(info['jd_path']) as f:
         jobs = json.load(f)
     jobs = [x if x['id'] != info['id'] else info for x in jobs]
     with open(f'{info["jd_path"]}', 'w') as f:
@@ -111,12 +111,14 @@ def build(path, method, id=None, root='', **params):
     if path is None:
         path = get_path(id=id)
     template = load_template(path)
+    if root and root[-1] != '/':
+        root = root.strip() + '/'
 
     try:
         if method == 'up':
             if not os.path.exists(root + '.jd'):
                 os.makedirs(root + '.jd')
-            info = prepare_params_for_resource(path, template, params)
+            info = prepare_params_for_resource(path, template, root, params)
         else:
             jd_path = _get_jd_path(id)
             assert id is not None
@@ -132,7 +134,8 @@ def build(path, method, id=None, root='', **params):
             postprocess_params_for_resource(info)
 
     except Exception as e:
-        if method == 'up':
-            rm(info['id'])
+        # if method == 'up':
+        #     rm(info['id'], down=False, purge=False)
+        pass
         raise e
 
