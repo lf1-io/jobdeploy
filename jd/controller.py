@@ -30,7 +30,7 @@ def prepare_params_for_resource(path, template, root, params):
         missing_msg(set(params.keys()), set(template['params']))
 
     info = {'params': params,
-            'config': template['config'],
+            'config': template.get('config', {}),
             'created': str(datetime.datetime.now()),
             'template': path,
             **meta}

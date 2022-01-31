@@ -16,7 +16,7 @@ def get_or_create_values(template, params, meta, on_up=False):
             create_values(missing_values,
                           params,
                           meta,
-                          template['config'],
+                          template.get('config', {}),
                           existing_values=existing_values,
                           on_up=on_up)
         )

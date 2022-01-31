@@ -26,7 +26,6 @@ def load_template(path):
 
     assert 'builds' in template, 'template must have section "builds"'
     assert 'params' in template, 'template must have section "params"'
-    assert 'config' in template, 'template must have section "config"'
     assert 'meta' in template, 'template must have section "meta"'
     return template
 
