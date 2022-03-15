@@ -61,7 +61,10 @@ def postprocess_params_for_resource(info, method):
         json.dump(jobs, f, indent=2)
 
 
-def rm(id, purge=False, down=True):
+def rm(id=None, purge=False, down=False):
+    if id is None:
+        id = _get_last_id(None)
+
     r = load_resource(id)
     if down:
         if 'stopped' not in r:
@@ -77,22 +80,25 @@ def rm(id, purge=False, down=True):
         json.dump(jobs, f, indent=2)
 
 
-def ls(template=None, root=''):
+def ls(template=None, root='', verbose=True):
     out = load_all_resources(root=root)
     out = [{k: v for k, v in x.items() if k not in {'values', 'config'}} for x in out]
     if template is not None:
         out = [x for x in out if re.match(template, x['template']) is not None]
-    print(json.dumps(out, indent=2))
+    if verbose:
+        print(json.dumps(out, indent=2))
     return out
 
 
-def view(id):
+def view(id, verbose=True):
     out = load_resource(id)
-    print(json.dumps(out, indent=2))
+    if verbose:
+        print(json.dumps(out, indent=2))
+    return out
 
 
 def _get_last_id(template_path):
-    records = ls(template=template_path)
+    records = ls(template=template_path, verbose=False)
     return records[-1]['id']
 
 
@@ -101,14 +107,21 @@ def _get_jd_path(id):
     return next(x for x in records if x['id'] == id)['jd_path']
 
 
-def build(path, method, id=None, root='', **params):
+def build(path, method, id=None, root='', params=None, runtime=None):
     """ Call template located at "path" with parameters.
 
     :param path: Template .yaml path.
     :param method: Name of build to run.
     :param root: Root directory for storing meta-data
-    :param params: Run-time parameters (key values)
+    :param params: Parameters (key values)
+    :param runtime: Run-time parameters for methods
     """
+    if params is None:
+        params = {}
+    if method == 'up':
+        assert runtime is None
+    if runtime is None:
+        runtime = {}
 
     if id is None and not (method == 'up'):
         id = _get_last_id(path)
@@ -132,14 +145,19 @@ def build(path, method, id=None, root='', **params):
             params = info['params']
 
         meta = {k: v for k, v in info.items() if k not in {'values', 'params', 'config'}}
-        call_template(template, method, params, meta, on_up=method == 'up')
+        call_template(template,
+                      method,
+                      params,
+                      meta,
+                      runtime=runtime,
+                      on_up=method == 'up')
 
         if method == 'down':
             postprocess_params_for_resource(info, method)
 
     except Exception as e:
-        # if method == 'up':
-        #     rm(info['id'], down=False, purge=False)
+        if method == 'up':
+            rm(info['id'], down=False, purge=False)
         pass
         raise e
 

@@ -30,7 +30,19 @@ def load_template(path):
     return template
 
 
-def call_template(template, method, params, meta, on_up=False):
+def _get_runtime_parameters(build_cf, method):
+    if build_cf[method]['type'] in {'script', 'file'}:
+        return build_cf[method].get('runtime', [])
+    elif build_cf[method]['type'] == 'sequence':
+        output = {}
+        for submethod in build_cf[method]['content']:
+            output.update(_get_runtime_parameters(build_cf, submethod))
+        return output
+    else:
+        raise ValueError(f'cant get runtime parameters for {build_cf[method]["type"]}')
+
+
+def call_template(template, method, params, meta, runtime=None, on_up=False):
     """
     Call template with parameters.
 
@@ -38,8 +50,16 @@ def call_template(template, method, params, meta, on_up=False):
     :param method: Name of build to run.
     """
 
+    if runtime is None:
+        runtime = {}
+
     assert set(params.keys()) == set(template['params']), \
         missing_msg(set(params.keys()), set(template['params']))
+
+    runtime_parameters = _get_runtime_parameters(template['builds'], method)
+    if not set(runtime.keys()).issubset(set(runtime_parameters)):
+        raise Exception(f'specified runtime parameters {list(runtime.keys())}'
+                        f' don\'t match required {list(runtime_parameters)}')
 
     def build_method(method):
         cf = template['builds'][method]
@@ -51,9 +71,12 @@ def call_template(template, method, params, meta, on_up=False):
 
         if cf['type'] != 'sequence':
             print(f'building "{method}"')
+            runtime_defaults = cf.get('runtime', {})
+            runtime_defaults.update(runtime)
 
             content = Template(cf['content'], undefined=StrictUndefined).render(
-                params=params, values=values, meta=meta, config=template['config'],
+                params=params, values=values, meta=meta, config=template.get('config', {}),
+                runtime=runtime_defaults,
             )
             log_content(content)
             if cf['type'] == 'file':

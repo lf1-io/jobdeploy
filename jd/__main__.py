@@ -1,3 +1,5 @@
+import os
+
 import click
 import re
 from jd.controller import build as _build, rm as _rm, ls as _ls, view as _view
@@ -46,6 +48,14 @@ class KeyValuePairs(click.ParamType):
             return {}
         try:
             my_dict = parse_inputs(value)
+            for k, v in my_dict.items():
+                if isinstance(v, str) and '$' in v:
+                    group = re.match('.*\$([A-Za-z\_0-9]+)', v).groups()[0]
+                    try:
+                        my_dict[k] = v.replace(f'${group}', os.environ[group])
+                    except KeyError:
+                        raise Exception('key values referred to environment variable which did'
+                                        ' not exist')
             return my_dict
         except TypeError:
             self.fail(
@@ -72,9 +82,9 @@ def view(id):
 
 
 @cli.command()
-@click.argument('id')
+@click.option('--id', default=None)
 @click.option('--purge/--no-purge', default=False, help='purge resource')
-@click.option('--down/--no-down', default=True, help='tear down resource with the down method')
+@click.option('--down/--no-down', default=False, help='tear down resource with the down method')
 def rm(id, purge, down):
     _rm(id, purge, down)
 
@@ -85,14 +95,16 @@ def rm(id, purge, down):
 @click.option('--id', default=None)
 @click.option('--params', default=None, help='key-value pairs to add to build',
               type=KeyValuePairs())
+@click.option('--runtime', default=None, help='runtime key-value pairs to add to build',
+              type=KeyValuePairs())
 @click.option('--root', default='')
-def build(method, template, id, params, root):
+def build(method, template, id, params, runtime, root):
     print(params)
     if params is None:
         params = {}
     if isinstance(template, str) and template.endswith('.yaml'):
         template = template.split('.yaml')[0]
-    _build(template, method, id=id, root=root, **params)
+    _build(template, method, id=id, root=root, params=params, runtime=runtime)
 
 
 if __name__ == '__main__':

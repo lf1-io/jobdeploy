@@ -32,6 +32,11 @@ def create_values(values, params, meta, config, existing_values=None,
     Create values. Go through dictionary of values based on parameters dictionary.
 
     :param values: Dictionary of values with Jinja2 variables in strings.
+    :param params:
+    :param meta:
+    :param config:
+    :param existing_values:
+    :param on_up:
     """
     if existing_values is None:
         existing_values = {}
@@ -45,8 +50,7 @@ def create_values(values, params, meta, config, existing_values=None,
             else:
                 print(f"didn't create static value because on_up=False: {k}")
 
-    for k in values:
-        if values[k]['type'].startswith('output/'):
+        elif values[k]['type'].startswith('output/'):
             if not on_up or values[k].get('on_up', True):
                 output = create_output_value(values[k]['content'], existing_values, params, meta,
                                              config)
@@ -56,9 +60,11 @@ def create_values(values, params, meta, config, existing_values=None,
                 elif suffix == 'json':
                     existing_values[k] = json.loads(suffix)
                 else:
-                    raise NotImplementedError(f'output type for value not supported: {suffix}.')
+                    raise NotImplementedError(f"output type for value not supported: {suffix}")
             else:
                 print(f"didn't create output value because on_up=False: {k}")
+        else:
+            raise NotImplementedError
     return existing_values
 
 
@@ -87,6 +93,7 @@ def create_static_value(value, other_values, params, meta, config):
                                                                  values=other_values,
                                                                  config=config,
                                                                  meta=meta)
+
     elif isinstance(value, list):
         return [create_static_value(x, other_values, params, config, meta) for x in value]
 
