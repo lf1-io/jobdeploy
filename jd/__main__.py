@@ -84,9 +84,8 @@ def view(id):
 @cli.command()
 @click.option('--id', default=None)
 @click.option('--purge/--no-purge', default=False, help='purge resource')
-@click.option('--down/--no-down', default=False, help='tear down resource with the down method')
-def rm(id, purge, down):
-    _rm(id, purge, down)
+def rm(id, purge):
+    _rm(id, purge)
 
 
 @cli.command(help='build template')

@@ -61,14 +61,13 @@ def postprocess_params_for_resource(info, method):
         json.dump(jobs, f, indent=2)
 
 
-def rm(id=None, purge=False, down=False):
+def rm(id=None, purge=False):
     if id is None:
         id = _get_last_id(None)
 
     r = load_resource(id)
-    if down:
-        if 'stopped' not in r:
-            build(r['template'], 'down', id=id)
+    if 'stopped' not in r:
+        build(r['template'], 'down', id=id)
     if purge:
         build(r['template'], 'purge', id=id)
 
