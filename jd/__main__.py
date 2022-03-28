@@ -71,21 +71,24 @@ class KeyValuePairs(click.ParamType):
 @cli.command()
 @click.option('--template', default=None, help='type of resource to list')
 @click.option('--root', default='', help='limit list to directory root')
-def ls(template, root):
-    _ls(template, root)
+@click.option('--query', default=None, type=KeyValuePairs())
+def ls(template, root, query):
+    _ls(template, root, query=query)
 
 
 @cli.command()
-@click.argument('id')
-def view(id):
-    _view(id)
+@click.option('--id', default=None)
+@click.option('--query', default=None, type=KeyValuePairs())
+def view(id, query):
+    _view(id=id, query=query)
 
 
 @cli.command()
 @click.option('--id', default=None)
 @click.option('--purge/--no-purge', default=False, help='purge resource')
-def rm(id, purge):
-    _rm(id, purge)
+@click.option('--query', default=None, type=KeyValuePairs())
+def rm(id, purge, query):
+    _rm(id, purge, query)
 
 
 @cli.command(help='build template')
@@ -94,16 +97,17 @@ def rm(id, purge):
 @click.option('--id', default=None)
 @click.option('--params', default=None, help='key-value pairs to add to build',
               type=KeyValuePairs())
+@click.option('--query', default=None, type=KeyValuePairs())
 @click.option('--runtime', default=None, help='runtime key-value pairs to add to build',
               type=KeyValuePairs())
 @click.option('--root', default='')
-def build(method, template, id, params, runtime, root):
+def build(method, template, id, params, runtime, root, query):
     print(params)
     if params is None:
         params = {}
     if isinstance(template, str) and template.endswith('.yaml'):
         template = template.split('.yaml')[0]
-    _build(template, method, id=id, root=root, params=params, runtime=runtime)
+    _build(template, method, id=id, root=root, params=params, runtime=runtime, query=query)
 
 
 if __name__ == '__main__':

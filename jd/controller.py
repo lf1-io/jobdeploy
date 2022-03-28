@@ -4,7 +4,7 @@ import os
 import re
 
 from jd.resources import load_resource, load_all_resources
-from jd.utils import random_id
+from jd.utils import random_id, evaluate_query
 from jd.utils import missing_msg
 from jd.templates import call_template, load_template, get_path
 
@@ -61,9 +61,13 @@ def postprocess_params_for_resource(info, method):
         json.dump(jobs, f, indent=2)
 
 
-def rm(id=None, purge=False):
-    if id is None:
+def rm(id=None, purge=False, query=None):
+    if id is None and query is None:
         id = _get_last_id(None)
+    elif query is not None:
+        records = ls(query=query, verbose=False)
+        assert len(records) == 1, 'didn\'t get a unique record for query'
+        id = records[0]['id']
 
     r = load_resource(id)
     if 'stopped' not in r:
@@ -79,17 +83,24 @@ def rm(id=None, purge=False):
         json.dump(jobs, f, indent=2)
 
 
-def ls(template=None, root='', verbose=True):
+def ls(template=None, root='', verbose=True, query=None):
     out = load_all_resources(root=root)
     out = [{k: v for k, v in x.items() if k not in {'values', 'config'}} for x in out]
     if template is not None:
         out = [x for x in out if re.match(template, x['template']) is not None]
+    if query is not None:
+        out = [x for x in out if evaluate_query(x, query)]
     if verbose:
         print(json.dumps(out, indent=2))
     return out
 
 
-def view(id, verbose=True):
+def view(id=None, verbose=True, query=None):
+    if id is None:
+        assert query is not None, 'must specify id or query'
+        records = ls(query=query, verbose=False)
+        assert len(records) == 1, 'didn\'t get a unique record for query'
+        id = records[0]['id']
     out = load_resource(id)
     if verbose:
         print(json.dumps(out, indent=2))
@@ -102,18 +113,19 @@ def _get_last_id(template_path):
 
 
 def _get_jd_path(id):
-    records = ls()
+    records = ls(verbose=False)
     return next(x for x in records if x['id'] == id)['jd_path']
 
 
-def build(path, method, id=None, root='', params=None, runtime=None):
-    """ Call template located at "path" with parameters.
+def build(path, method, id=None, root='', params=None, runtime=None, query=None):
+    """ Call template located at "path" with paramters.
 
     :param path: Template .yaml path.
     :param method: Name of build to run.
     :param root: Root directory for storing meta-data
     :param params: Parameters (key values)
     :param runtime: Run-time parameters for methods
+    :param query: Query on records, to select target
     """
     if params is None:
         params = {}
@@ -122,8 +134,14 @@ def build(path, method, id=None, root='', params=None, runtime=None):
     if runtime is None:
         runtime = {}
 
-    if id is None and not (method == 'up'):
+    if (id is None and query is None) and not (method == 'up'):
         id = _get_last_id(path)
+    elif method != 'up' and id is None:
+        assert query is not None, 'must specify id or query'
+        records = ls(query=query, verbose=False)
+        assert len(records) == 1, 'didn\'t get a unique record for query'
+        id = records[0]['id']
+
     if path is None:
         path = get_path(id=id)
     template = load_template(path)

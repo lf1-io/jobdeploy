@@ -2,6 +2,32 @@ import os
 import random
 
 
+def evaluate_query(r, query):
+    """
+    >>> r = {"id": "123", "info": {"name": "bla"}}
+    >>> evaluate_query(r, {"id": "123"})
+    True
+    >>> evaluate_query(r, {"info.name": "bla"})
+    True
+    >>> evaluate_query(r, {"info.name": "foo"})
+    False
+    """
+    if len(query) > 1:
+        return all([evaluate_query(r, {k: v}) for k, v in query.items()])
+    key = next(iter(query.keys()))
+    value = next(iter(query.values()))
+    if '.' in key:
+        root = key.split('.')[0]
+        previous = '.'.join(key.split('.')[1:])
+        if root not in r:
+            return False
+        return evaluate_query(r[root], {previous: value})
+    try:
+        return r[key] == value
+    except KeyError:
+        return False
+
+
 def missing_msg(params, target):
     msg = ''
     if not params.issubset(target):
