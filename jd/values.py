@@ -1,4 +1,6 @@
 import json
+import warnings
+
 from jinja2 import Template, StrictUndefined
 from jd.utils import random_id, log_content, call_script
 
@@ -52,15 +54,19 @@ def create_values(values, params, meta, config, existing_values=None,
 
         elif values[k]['type'].startswith('output/'):
             if not on_up or values[k].get('on_up', True):
-                output = create_output_value(values[k]['content'], existing_values, params, meta,
-                                             config)
-                suffix = values[k]['type'].split('output/')[-1]
-                if suffix == 'str':
-                    existing_values[k] = output
-                elif suffix == 'json':
-                    existing_values[k] = json.loads(suffix)
-                else:
-                    raise NotImplementedError(f"output type for value not supported: {suffix}")
+                try:
+                    output = create_output_value(values[k]['content'], existing_values, params, meta,
+                                                 config)
+                    suffix = values[k]['type'].split('output/')[-1]
+                    if suffix == 'str':
+                        existing_values[k] = output
+                    elif suffix == 'json':
+                        existing_values[k] = json.loads(suffix)
+                    else:
+                        raise NotImplementedError(f"output type for value not supported: {suffix}")
+                except Exception as e:
+                    if 'grabbing output' in str(e) and not values[k].get('raise', True):
+                        print(f'couldn\'t grab output for {k}')
             else:
                 print(f"didn't create output value because on_up=False: {k}")
         else:

@@ -61,7 +61,7 @@ def postprocess_params_for_resource(info, method):
         json.dump(jobs, f, indent=2)
 
 
-def rm(id=None, purge=False, query=None):
+def rm(id=None, purge=False, query=None, force=False):
     if id is None and query is None:
         id = _get_last_id(None)
     elif query is not None:
@@ -71,7 +71,11 @@ def rm(id=None, purge=False, query=None):
 
     r = load_resource(id)
     if 'stopped' not in r:
-        build(r['template'], 'down', id=id)
+        try:
+            build(r['template'], 'down', id=id)
+        except Exception as e:
+            if not force:
+                raise Exception('couldnt build the "down" method') from e
     if purge:
         build(r['template'], 'purge', id=id)
 
@@ -174,7 +178,7 @@ def build(path, method, id=None, root='', params=None, runtime=None, query=None)
 
     except Exception as e:
         if method == 'up':
-            rm(info['id'], down=False, purge=False)
+            rm(info['id'], purge=False)
         pass
         raise e
 
