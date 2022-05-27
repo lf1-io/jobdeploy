@@ -1,4 +1,5 @@
 import os
+import time
 
 from jinja2 import Template, StrictUndefined
 import yaml
@@ -16,7 +17,7 @@ def load_template(path):
     """
     Load deployment template.
 
-    :params path: Load template from path. If templte has "parents" field, then combine with parent
+    :params path: Load template from path. If template has "parents" field, then combine with parent
         templates. Parameters named in binds are set in the parents as defaults.
     """
     if not path.endswith('.yaml'):
@@ -42,55 +43,75 @@ def _get_runtime_parameters(build_cf, method):
         raise ValueError(f'cant get runtime parameters for {build_cf[method]["type"]}')
 
 
-def call_template(template, method, params, meta, runtime=None, on_up=False):
-    """
-    Call template with parameters.
+class TemplateCaller:
+    def __init__(self, template, params, meta):
+        assert set(params.keys()) == set(template['params']), \
+            missing_msg(set(params.keys()), set(template['params']))
+        self.params = params
+        self.template = template
+        self.meta = meta
+        self.deploy_dir = f'{meta["subdir"]}/tasks'
+        if not os.path.exists(self.deploy_dir):
+            os.makedirs(self.deploy_dir, exist_ok=True)
 
-    :param template: Loaded template dictionary.
-    :param method: Name of build to run.
-    """
+    def _get_values(self, on_up=False):
+        return get_or_create_values(self.template, self.params, self.meta, on_up=on_up)
 
-    if runtime is None:
-        runtime = {}
+    def __call__(self, method, runtime=None, on_up=False):
+        print('-' * 20 + '\n' + f'BUILDING {method}\n' + '-' * 20)
+        cf = self.template['builds'][method]
+        runtime_parameters = _get_runtime_parameters(self.template['builds'], method)
+        if not set(runtime.keys()).issubset(set(runtime_parameters)):
+            raise Exception(f'specified runtime parameters {list(runtime.keys())}'
+                            f' don\'t match required {list(runtime_parameters)}')
+        runtime_defaults = cf.get('runtime', {})
+        runtime_defaults.update(runtime)
 
-    assert set(params.keys()) == set(template['params']), \
-        missing_msg(set(params.keys()), set(template['params']))
-
-    runtime_parameters = _get_runtime_parameters(template['builds'], method)
-    if not set(runtime.keys()).issubset(set(runtime_parameters)):
-        raise Exception(f'specified runtime parameters {list(runtime.keys())}'
-                        f' don\'t match required {list(runtime_parameters)}')
-
-    def build_method(method):
-        cf = template['builds'][method]
-        values = get_or_create_values(template, params, meta, on_up=on_up)
-
-        deploy_dir = f'{meta["subdir"]}/tasks'
-        if not os.path.exists(deploy_dir):
-            os.makedirs(deploy_dir, exist_ok=True)
-
-        if cf['type'] != 'sequence':
-            print(f'building "{method}"')
-            runtime_defaults = cf.get('runtime', {})
-            runtime_defaults.update(runtime)
-
-            content = Template(cf['content'], undefined=StrictUndefined).render(
-                params=params, values=values, meta=meta, config=template.get('config', {}),
-                runtime=runtime_defaults,
-            )
-            log_content(content)
+        if cf['type'] == 'sequence':
+            for method in cf['content']:
+                self(method, runtime=runtime_defaults, on_up=on_up)
+        else:
             if cf['type'] == 'file':
-                path = f'{deploy_dir}/{method}'
-                with open(path, 'w') as f:
-                    f.write(content)
-            if cf['type'] == 'script':
-                path = f'{deploy_dir}/{method}'
-                exit_code = call_script(path, content, grab_output=False, cleanup=False)
-                if exit_code and exit_code not in cf.get('whitelist', []):
-                    raise Exception(f'script exited with non-zero exit code: {exit_code}.')
-            return
+                self._do_file(cf, method, on_up, runtime_defaults)
+            elif cf['type'] == 'script':
+                self._do_script(cf, method, on_up, runtime_defaults)
+            else:
+                raise ValueError(f'Unknown build type {type}')
 
-        for m in cf['content']:
-            build_method(m)
+    def _get_content(self, content, runtime_defaults, on_up=False):
+        return Template(content, undefined=StrictUndefined).render(
+            params=self.params,
+            values=self._get_values(on_up=on_up),
+            meta=self.meta,
+            config=self.template.get('config', {}),
+            runtime=runtime_defaults,
+        )
 
-    build_method(method)
+    def _do_file(self, cf, method, on_up, runtime_defaults):
+        content = self._get_content(cf['content'], runtime_defaults=runtime_defaults,
+                                    on_up=on_up)
+        log_content(content)
+        path = f'{self.deploy_dir}/{method}'
+        with open(path, 'w') as f:
+            f.write(content)
+
+    def _do_script(self, cf, method, on_up, runtime_defaults):
+        num_retries = cf.get('num_retries', 0)
+        while True:
+            try:
+                self._execute_script(cf, method, on_up, runtime_defaults)
+                return
+            except Exception as e:
+                if num_retries == 0:
+                    raise e
+                num_retries -= 1
+                print(f'couldn\'t execute retrying... {str(e)}')
+                time.sleep(cf.get('retry_interval', 10))
+
+    def _execute_script(self, cf, method, on_up, runtime_defaults):
+        content = self._get_content(cf['content'], runtime_defaults=runtime_defaults,
+                                    on_up=on_up)
+        path = f'{self.deploy_dir}/{method}'
+        exit_code = call_script(path, content, grab_output=False, cleanup=False)
+        if exit_code and exit_code not in cf.get('whitelist', []):
+            raise Exception(f'script exited with non-zero exit code: {exit_code}.')

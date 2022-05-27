@@ -6,7 +6,7 @@ import re
 from jd.resources import load_resource, load_all_resources
 from jd.utils import random_id, evaluate_query
 from jd.utils import missing_msg
-from jd.templates import call_template, load_template, get_path
+from jd.templates import load_template, get_path, TemplateCaller
 
 
 def get_project():
@@ -61,28 +61,13 @@ def postprocess_params_for_resource(info, method):
         json.dump(jobs, f, indent=2)
 
 
-def rm(id=None, purge=False, query=None, force=False):
-    if id is None and query is None:
-        id = _get_last_id(None)
-    elif query is not None:
-        records = ls(query=query, verbose=False)
-        assert len(records) == 1, 'didn\'t get a unique record for query'
-        id = records[0]['id']
-
+def rm(id, force=False):
     r = load_resource(id)
-    if 'stopped' not in r:
-        try:
-            build(r['template'], 'down', id=id)
-        except Exception as e:
-            if not force:
-                raise Exception('couldnt build the "down" method') from e
-    if purge:
-        build(r['template'], 'purge', id=id)
-
+    if 'stopped' not in r and not force:
+        raise Exception('resource has not been stopped')
     with open(r['jd_path']) as f:
         jobs = json.load(f)
     jobs = [x for x in jobs if x['id'] != r['id']]
-
     with open(r['jd_path'], 'w') as f:
         json.dump(jobs, f, indent=2)
 
@@ -166,19 +151,15 @@ def build(path, method, id=None, root='', params=None, runtime=None, query=None)
             params = info['params']
 
         meta = {k: v for k, v in info.items() if k not in {'values', 'params', 'config'}}
-        call_template(template,
-                      method,
-                      params,
-                      meta,
-                      runtime=runtime,
-                      on_up=method == 'up')
+        template_caller = TemplateCaller(template, params, meta)
+        template_caller(method, runtime=runtime, on_up=method == 'up')
 
         if method == 'down':
             postprocess_params_for_resource(info, method)
 
     except Exception as e:
         if method == 'up':
-            rm(info['id'], purge=False)
-        pass
+            template_caller('down', runtime=runtime, on_up=False)
+            rm(info['id'], force=True)
         raise e
 

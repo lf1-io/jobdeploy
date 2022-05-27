@@ -84,11 +84,10 @@ def view(id, query):
 
 
 @cli.command()
-@click.option('--id', default=None)
-@click.option('--purge/--no-purge', default=False, help='purge resource')
-@click.option('--query', default=None, type=KeyValuePairs())
-def rm(id, purge, query):
-    _rm(id, purge, query)
+@click.argument('id')
+@click.option('--force/--no-force', default=False, help='force remove even if not stopped')
+def rm(id, force):
+    _rm(id, force)
 
 
 @cli.command(help='build template')
