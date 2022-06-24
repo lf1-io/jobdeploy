@@ -50,12 +50,13 @@ class KeyValuePairs(click.ParamType):
             my_dict = parse_inputs(value)
             for k, v in my_dict.items():
                 if isinstance(v, str) and '$' in v:
-                    group = re.match('.*\$([A-Za-z\_0-9]+)', v).groups()[0]
-                    try:
-                        my_dict[k] = v.replace(f'${group}', os.environ[group])
-                    except KeyError:
-                        raise Exception('key values referred to environment variable which did'
-                                        ' not exist')
+                    matches = re.findall('\$([A-Za-z\_0-9]+)', v)
+                    for m in matches:
+                        try:
+                            my_dict[k] = my_dict[k].replace(f'${m}', os.environ[m])
+                        except KeyError:
+                            raise Exception('key values referred to environment variable which did'
+                                            ' not exist')
             return my_dict
         except TypeError:
             self.fail(
@@ -77,10 +78,9 @@ def ls(template, root, query):
 
 
 @cli.command()
-@click.option('--id', default=None)
-@click.option('--query', default=None, type=KeyValuePairs())
-def view(id, query):
-    _view(id=id, query=query)
+@click.argument('id')
+def view(id):
+    _view(id=id)
 
 
 @cli.command()

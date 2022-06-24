@@ -22,7 +22,7 @@ def load_template(path):
     """
     if not path.endswith('.yaml'):
         path += '.yaml'
-    with open('templates/' + path) as f:
+    with open('jd_templates/' + path) as f:
         template = yaml.safe_load(f.read())
 
     assert 'builds' in template, 'template must have section "builds"'
@@ -60,10 +60,6 @@ class TemplateCaller:
     def __call__(self, method, runtime=None, on_up=False):
         print('-' * 20 + '\n' + f'BUILDING {method}\n' + '-' * 20)
         cf = self.template['builds'][method]
-        runtime_parameters = _get_runtime_parameters(self.template['builds'], method)
-        if not set(runtime.keys()).issubset(set(runtime_parameters)):
-            raise Exception(f'specified runtime parameters {list(runtime.keys())}'
-                            f' don\'t match required {list(runtime_parameters)}')
         runtime_defaults = cf.get('runtime', {})
         runtime_defaults.update(runtime)
 
@@ -111,6 +107,7 @@ class TemplateCaller:
     def _execute_script(self, cf, method, on_up, runtime_defaults):
         content = self._get_content(cf['content'], runtime_defaults=runtime_defaults,
                                     on_up=on_up)
+        log_content(content)
         path = f'{self.deploy_dir}/{method}'
         exit_code = call_script(path, content, grab_output=False, cleanup=False)
         if exit_code and exit_code not in cf.get('whitelist', []):
