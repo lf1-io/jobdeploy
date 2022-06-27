@@ -20,6 +20,7 @@ def prepare_params_for_resource(path, template, root, params):
     msg = os.popen('git log -1 --pretty=%B').read().split('\n')[0]
     meta['message_up'] = '\n'.join([x.strip() for x in msg.split('\n') if x.strip()])
     meta['jd_path'] = root + 'jd.json'
+    meta['user'] = os.environ['USER']
     if not meta['commit_up']:
         raise Exception('something went wrong determining the current commit')
     subdir = f'{root}.jd/{meta["id"]}'
