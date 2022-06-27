@@ -74,8 +74,8 @@ class KeyValuePairs(click.ParamType):
 @click.option('--root', default='', help='limit list to directory root')
 @click.option('--exclude', default='^\.jd', help='pattern to exclude from search')
 @click.option('--query', default=None, type=KeyValuePairs())
-def ls(template, root, query):
-    _ls(template, root, query=query)
+def ls(template, root, query, exclude):
+    _ls(template, root, query=query, exclude=exclude)
 
 
 @cli.command()
