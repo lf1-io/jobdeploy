@@ -1,5 +1,6 @@
 import glob
 import json
+import re
 
 
 def find_jd_files(depth=3):
@@ -10,11 +11,12 @@ def find_jd_files(depth=3):
     return files
 
 
-def load_all_resources(root='', depth=3):
+def load_all_resources(root='', depth=3, exclude='^\.jd'):
     """
     Load all of the meta data of all deployments.
     """
     all_files = find_jd_files(depth=depth)
+    all_files = [x for x in all_files if re.match(exclude, x) is None]
     all_ = []
     for file_ in all_files:
         if not file_.startswith(root):

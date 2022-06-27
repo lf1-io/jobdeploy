@@ -72,6 +72,7 @@ class KeyValuePairs(click.ParamType):
 @cli.command()
 @click.option('--template', default=None, help='type of resource to list')
 @click.option('--root', default='', help='limit list to directory root')
+@click.option('--exclude', default='^\.jd', help='pattern to exclude from search')
 @click.option('--query', default=None, type=KeyValuePairs())
 def ls(template, root, query):
     _ls(template, root, query=query)
