@@ -72,8 +72,8 @@ def rm(id, force=False):
         json.dump(jobs, f, indent=2)
 
 
-def ls(template=None, root='', verbose=True, query=None):
-    out = load_all_resources(root=root)
+def ls(template=None, root='', verbose=True, query=None, exclude='^\.jd'):
+    out = load_all_resources(root=root, exclude=exclude)
     out = [{k: v for k, v in x.items() if k not in {'values', 'config'}} for x in out]
     if template is not None:
         out = [x for x in out if re.match(template, x['template']) is not None]
