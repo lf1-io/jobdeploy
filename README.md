@@ -6,9 +6,8 @@ Getting started.
 pip install ai-jobdeploy
 ```
 
-1. In a project `mkdir .js`
-2. Create some deployment templates (see below)
-3. Get experimenting!
+1. Create some deployment templates (see below)
+1. Get experimenting!
 
 
 ## Base Template
