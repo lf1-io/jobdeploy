@@ -116,6 +116,10 @@ jd build watch --id <id>
 
 Stop resource:
 ```bash
-jd rm <id> [--purge/--no-purge]
+jd build down <id>
 ```
 
+Delete record of resource:
+```bash
+jd rm <id>
+```
